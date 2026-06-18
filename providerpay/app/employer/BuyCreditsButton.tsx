@@ -33,7 +33,7 @@ export default function BuyCreditsButton() {
       <button
         onClick={handleClick}
         disabled={loading}
-        className="w-full rounded bg-black px-4 py-2 text-white disabled:opacity-40"
+        className="w-full rounded-md bg-teal-700 py-2.5 font-medium text-white disabled:opacity-40"
       >
         {loading ? "Redirecting..." : "Buy 20 credits"}
       </button>

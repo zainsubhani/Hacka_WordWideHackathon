@@ -1,101 +1,123 @@
-import Image from "next/image";
+import Link from "next/link";
+
+function PrimaryButton({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function SecondaryButton({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="rounded-lg border border-gray-200 bg-transparent px-4 py-2 text-sm font-medium text-gray-900"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function CtaButtons() {
+  return (
+    <div className="flex gap-3">
+      <PrimaryButton href="/employee">Try a check-in</PrimaryButton>
+      <SecondaryButton href="/employer">For employers</SecondaryButton>
+    </div>
+  );
+}
+
+const STATS = [
+  { number: "72%", label: "say society expects them to handle it silently" },
+  { number: "1 in 3", label: "see asking for help as a weakness" },
+  { number: "49%", label: "who do seek help quit before it works" },
+];
+
+const STEPS = [
+  {
+    title: "Check in, ninety seconds",
+    description:
+      "A few sliders on how the week felt, then one prompt: what's one thing you're carrying right now.",
+  },
+  {
+    title: "Choose where it goes",
+    description:
+      "Send it to someone you trust, or use a credit your employer already funded for a listener's reply.",
+  },
+  {
+    title: "One reply, nothing implied",
+    description:
+      "A thoughtful response within 24 hours. No next session booked, no ongoing relationship assumed.",
+  },
+];
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+    <main className="mx-auto max-w-2xl space-y-20 px-4 py-16">
+      <section className="space-y-6">
+        <h1 className="font-serif text-4xl font-medium leading-tight text-gray-900">
+          Carrying it alone isn&apos;t strength.
+        </h1>
+        <p className="text-lg text-gray-500">
+          ProviderPay is confidential support for the financial pressure of
+          being a provider — no booking, no subscription, one exchange at a
+          time.
+        </p>
+        <CtaButtons />
+      </section>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+      <section className="space-y-3">
+        <div className="grid grid-cols-3 gap-6">
+          {STATS.map((stat) => (
+            <div key={stat.number}>
+              <p className="font-serif text-3xl text-gray-900">{stat.number}</p>
+              <p className="text-sm text-gray-500">{stat.label}</p>
+            </div>
+          ))}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        <p className="text-center text-xs text-gray-400">
+          Source: 2,000-person survey on provider pressure, 2026.
+        </p>
+      </section>
+
+      <section className="space-y-6">
+        <h2 className="text-xl font-medium text-gray-900">How it works</h2>
+        <div className="space-y-5">
+          {STEPS.map((step) => (
+            <div key={step.title} className="border-l-2 border-gray-200 pl-4">
+              <p className="font-bold text-gray-900">{step.title}</p>
+              <p className="text-gray-500">{step.description}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-medium text-gray-900">
+          Not another wellbeing subscription
+        </h2>
+        <p className="leading-relaxed text-gray-600">
+          Most platforms sell employers a flat seat license whether anyone
+          uses it or not, and quietly expect people to commit to an ongoing
+          course of sessions. ProviderPay is funded as a pay-per-use credit
+          pool from the financial wellness budget, not the EAP budget —
+          employers pay only for exchanges that actually happen, and nothing
+          about the product asks anyone to come back.
+        </p>
+      </section>
+
+      <section className="space-y-6 border-t border-gray-200 pt-12 text-center">
+        <p className="text-lg font-medium text-gray-900">
+          Ready to see it work?
+        </p>
+        <div className="flex justify-center gap-3">
+          <CtaButtons />
+        </div>
+      </section>
+    </main>
   );
 }

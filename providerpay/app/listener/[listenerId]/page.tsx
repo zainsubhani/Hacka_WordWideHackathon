@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import ReplyForm from "./ReplyForm";
+import QueueItem from "./QueueItem";
 
 export default async function ListenerQueuePage({
   params,
@@ -12,8 +12,8 @@ export default async function ListenerQueuePage({
 
   if (!listener) {
     return (
-      <main className="mx-auto max-w-md p-6">
-        <p>Listener not found.</p>
+      <main className="mx-auto min-h-screen max-w-[400px] px-4 py-8">
+        <p className="text-sm text-gray-500">Listener not found.</p>
       </main>
     );
   }
@@ -25,19 +25,25 @@ export default async function ListenerQueuePage({
   });
 
   return (
-    <main className="mx-auto max-w-md space-y-6 p-6">
-      <h1 className="text-xl font-semibold">{listener.name}&apos;s queue</h1>
+    <main className="mx-auto min-h-screen max-w-[400px] px-4 py-8">
+      <h1 className="mb-4 text-lg font-medium text-gray-900">
+        {listener.name}&apos;s queue
+      </h1>
 
       {queue.length === 0 && (
-        <p className="text-sm text-gray-600">No pending replies.</p>
+        <p className="text-sm text-gray-500">No pending replies.</p>
       )}
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {queue.map((transaction) => (
-          <div key={transaction.id} className="space-y-3 rounded border p-4">
-            <p className="text-sm">{transaction.checkIn.carryingText}</p>
-            <ReplyForm transactionId={transaction.id} />
-          </div>
+          <QueueItem
+            key={transaction.id}
+            transactionId={transaction.id}
+            carryingText={transaction.checkIn.carryingText}
+            sliderValues={
+              transaction.checkIn.sliderValues as Record<string, number>
+            }
+          />
         ))}
       </div>
     </main>

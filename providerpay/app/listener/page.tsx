@@ -7,17 +7,17 @@ export default async function ListenerSelectPage() {
   });
 
   return (
-    <main className="mx-auto max-w-md space-y-4 p-6">
-      <h1 className="text-xl font-semibold">Who are you?</h1>
-      <ul className="space-y-2">
+    <main className="mx-auto min-h-screen max-w-[400px] px-4 py-8">
+      <h1 className="mb-4 text-lg font-medium text-gray-900">Who are you?</h1>
+      <ul className="space-y-3">
         {listeners.map((listener) => (
           <li key={listener.id}>
             <Link
               href={`/listener/${listener.id}`}
-              className="block rounded border p-4"
+              className="block rounded-lg border border-gray-200 bg-white p-5"
             >
-              <div className="font-medium">{listener.name}</div>
-              <div className="text-sm text-gray-600">
+              <div className="font-medium text-gray-900">{listener.name}</div>
+              <div className="mt-1 text-sm text-gray-500">
                 {listener.available ? "Available" : "Busy"}
               </div>
             </Link>
