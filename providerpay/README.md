@@ -1,36 +1,98 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ProviderPay
 
-## Getting Started
+An employer-funded, pay-per-use confidential check-in for financial/provider
+stress. No subscriptions, no booked sessions — one exchange per credit, no
+implied ongoing relationship. See [`claude.md`](../claude.md) at the repo
+root for the full product constraints this build follows.
 
-First, run the development server:
+This is a one-day hackathon build: Next.js App Router, TypeScript, Tailwind,
+Prisma + SQLite.
+
+## Routes
+
+- `/employee` — three-step check-in flow: sliders (autonomy, financial
+  pressure, energy, connection) → free-text "what are you carrying" →
+  choice between sending to someone you trust (no backend) or using a
+  credit for a listener reply (posts to `/api/checkin`).
+- `/employee/status/[checkInId]` — lets an employee come back later and see
+  a listener's reply, looked up by the `checkInId` returned at submit time.
+  There's no auth in this build, so that id is the lookup key.
+- `/listener` — pick which seeded listener you are (no auth).
+- `/listener/[listenerId]` — that listener's queue of unreplied check-ins,
+  with a reply box per row.
+- `/employer` — credit balance, aggregate-only stats (total check-ins, risk
+  flags caught, credits used), a low-credit warning, recent payment history,
+  and a "Buy 20 credits" button that starts a Mollie test-mode checkout.
+
+## API routes
+
+- `POST /api/checkin` — runs the risk check before touching credits or
+  matching a listener. If risk is flagged, the check-in is recorded but no
+  credit is deducted and the frontend is told to show crisis resources
+  instead. Otherwise it decrements the employer's credit, creates the
+  `CheckIn`, assigns the first available `Listener`, and creates the linking
+  `Transaction`.
+- `POST /api/listener/reply` — records a listener's reply on a `Transaction`
+  and flips that listener back to available.
+- `POST /api/mollie/create-payment` — creates a test-mode Mollie payment for
+  one credit block (20 credits), records a `Payment` row, and returns the
+  Mollie checkout URL for the frontend to redirect to.
+- `POST /api/mollie/webhook` — re-fetches the payment from the Mollie API to
+  confirm its real status (never trusts the webhook body), and on `"paid"`
+  increments the matching employer's credit balance. Always responds `200`
+  regardless of internal outcome, per Mollie's retry behavior.
+
+## Data model
+
+`Employer`, `CheckIn`, `Transaction`, `Listener`, `Payment` — see
+[`prisma/schema.prisma`](prisma/schema.prisma).
+
+## Risk check
+
+`checkRisk` (in [`lib/checkRisk.ts`](lib/checkRisk.ts)) calls the Anthropic
+API with a tightly scoped yes/no system prompt when `ANTHROPIC_API_KEY` is
+set, and falls back to a keyword list otherwise so the demo never breaks if
+a key is missing.
+
+## Getting started
 
 ```bash
+npm install
+npx prisma migrate dev   # applies migrations, creates dev.db
+npx prisma db seed       # one Employer (20 credits), three Listeners
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000/employee](http://localhost:3000/employee) or
+[http://localhost:3000/employer](http://localhost:3000/employer).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Environment variables (`.env.local`)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Variable | Purpose |
+| --- | --- |
+| `MOLLIE_API_KEY` | Mollie **test** API key. Never use a live key. |
+| `PUBLIC_BASE_URL` | Public URL Mollie can reach for the webhook (e.g. an ngrok URL during local dev). `localhost` won't work here. |
+| `ANTHROPIC_API_KEY` | Optional. Enables the real risk-check call; falls back to keyword matching if unset. |
 
-## Learn More
+`DATABASE_URL` lives in `.env` and defaults to `file:./dev.db`.
 
-To learn more about Next.js, take a look at the following resources:
+### Testing the Mollie flow locally
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Mollie's webhook needs a publicly reachable URL, so `localhost` alone won't
+trigger it:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+ngrok http 3000
+```
 
-## Deploy on Vercel
+Copy the printed `https://...ngrok-free.dev` URL into `PUBLIC_BASE_URL` in
+`.env.local` and restart `npm run dev` (the free ngrok URL changes each time
+you restart the tunnel, so this step repeats per session).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Hard constraints
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The employer dashboard never exposes individual check-in text, slider
+  values, or employee identity — aggregate counts only.
+- Every check-in passes through the risk check before any credit is
+  deducted or listener matched.
+- No real money moves — Mollie is always used in test mode.
