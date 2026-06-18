@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 const CREDITS_PER_PAYMENT = 20;
+const AMOUNT_VALUE = "10.00";
 
 export async function POST() {
   const apiKey = process.env.MOLLIE_API_KEY;
@@ -23,7 +24,7 @@ export async function POST() {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      amount: { currency: "EUR", value: "10.00" },
+      amount: { currency: "EUR", value: AMOUNT_VALUE },
       description: "ProviderPay: 20 credits",
       redirectUrl: `${baseUrl}/employer`,
       webhookUrl: `${baseUrl}/api/mollie/webhook`,
@@ -45,6 +46,7 @@ export async function POST() {
       mollieId: payment.id,
       status: payment.status,
       creditsToAdd: CREDITS_PER_PAYMENT,
+      amountValue: AMOUNT_VALUE,
     },
   });
 
