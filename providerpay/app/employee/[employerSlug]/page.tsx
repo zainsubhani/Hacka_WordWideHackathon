@@ -2,7 +2,27 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+type SpeechRecognitionResultEvent = {
+  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+};
+
+type SpeechRecognitionInstance = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+};
+
+type SpeechRecognitionWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognitionInstance;
+  webkitSpeechRecognition?: new () => SpeechRecognitionInstance;
+};
 
 type Sliders = {
   autonomy: number;
@@ -14,6 +34,8 @@ type Sliders = {
 type Screen =
   | "sliders"
   | "carrying"
+  | "suggestion"
+  | "satisfiedClosing"
   | "choice"
   | "trustedConfirmation"
   | "listenerSuccess"
@@ -95,7 +117,7 @@ function CheckIcon() {
   );
 }
 
-function MicIcon() {
+function MicIcon({ className = "text-gray-500" }: { className?: string }) {
   return (
     <svg
       width="18"
@@ -104,7 +126,7 @@ function MicIcon() {
       fill="none"
       stroke="currentColor"
       strokeWidth="1.5"
-      className="text-gray-500"
+      className={className}
     >
       <rect x="9" y="3" width="6" height="11" rx="3" />
       <path d="M5 11a7 7 0 0 0 14 0M12 18v3" strokeLinecap="round" />
@@ -133,17 +155,65 @@ export default function EmployeePage() {
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [checkInId, setCheckInId] = useState("");
+  const [suggestionText, setSuggestionText] = useState("");
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+
+  useEffect(() => {
+    const speechWindow = window as SpeechRecognitionWindow;
+    setVoiceSupported(
+      Boolean(
+        speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition
+      )
+    );
+
+    return () => {
+      recognitionRef.current?.stop();
+    };
+  }, []);
+
+  function toggleVoiceInput() {
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const speechWindow = window as SpeechRecognitionWindow;
+    const SpeechRecognitionCtor =
+      speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
+
+    if (!SpeechRecognitionCtor) return;
+
+    const recognition = new SpeechRecognitionCtor();
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      const lastResult = event.results[event.results.length - 1];
+      const transcript = lastResult[0].transcript.trim();
+      if (!transcript) return;
+      setCarryingText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsListening(true);
+  }
 
   function updateSlider(key: keyof Sliders, value: number) {
     setSliders((prev) => ({ ...prev, [key]: value }));
   }
 
-  async function useListenerCredit() {
+  async function requestSuggestion() {
     setSubmitting(true);
     setErrorMessage("");
 
     try {
-      const response = await fetch("/api/checkin", {
+      const response = await fetch("/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -157,8 +227,56 @@ export default function EmployeePage() {
 
       if (data.showCrisisResources) {
         setScreen("crisis");
-      } else if (data.success) {
+      } else if (data.suggestionText) {
         setCheckInId(data.checkInId);
+        setSuggestionText(data.suggestionText);
+        setScreen("suggestion");
+      } else {
+        setErrorMessage(data.error ?? "Something went wrong. Please try again.");
+        setScreen("error");
+      }
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
+      setScreen("error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function markSatisfied(satisfied: boolean) {
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      await fetch(`/api/checkin/${checkInId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ satisfied }),
+      });
+
+      setScreen(satisfied ? "satisfiedClosing" : "choice");
+    } catch {
+      setErrorMessage("Something went wrong. Please try again.");
+      setScreen("error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function useListenerCredit() {
+    setSubmitting(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch("/api/checkin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checkInId }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
         setScreen("listenerSuccess");
       } else {
         setErrorMessage(data.error ?? "Something went wrong. Please try again.");
@@ -221,25 +339,84 @@ export default function EmployeePage() {
           <div className="mt-4 flex gap-2">
             <button
               type="button"
-              className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-md border border-gray-200"
-              aria-label="Voice input (not yet available)"
+              onClick={toggleVoiceInput}
+              disabled={!voiceSupported}
+              className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-md border disabled:opacity-40 ${
+                isListening
+                  ? "animate-pulse border-red-300 bg-red-50"
+                  : "border-gray-200"
+              }`}
+              aria-label={
+                voiceSupported
+                  ? isListening
+                    ? "Stop voice input"
+                    : "Start voice input"
+                  : "Voice input isn't supported in this browser"
+              }
+              title={
+                voiceSupported
+                  ? undefined
+                  : "Voice input isn't supported in this browser"
+              }
             >
-              <MicIcon />
+              <MicIcon className={isListening ? "text-red-600" : "text-gray-500"} />
             </button>
             <button
-              onClick={() => setScreen("choice")}
-              disabled={carryingText.trim().length === 0}
+              onClick={requestSuggestion}
+              disabled={carryingText.trim().length === 0 || submitting}
               className="flex-1 rounded-md bg-teal-700 py-2.5 font-medium text-white disabled:opacity-40"
             >
-              Continue
+              {submitting ? "Reflecting..." : "Continue"}
+            </button>
+          </div>
+          {isListening && (
+            <p className="mt-2 text-sm text-red-600">Listening...</p>
+          )}
+        </Card>
+      )}
+
+      {screen === "suggestion" && (
+        <Card>
+          <h1 className="mb-4 text-lg font-medium text-gray-900">
+            A quick reflection
+          </h1>
+          <div className="rounded-md bg-gray-50 p-4 text-sm text-gray-900">
+            {suggestionText}
+          </div>
+          <div className="mt-4 space-y-2">
+            <button
+              onClick={() => markSatisfied(true)}
+              disabled={submitting}
+              className="w-full rounded-md bg-teal-700 py-2.5 font-medium text-white disabled:opacity-40"
+            >
+              This helps, I&apos;m good
+            </button>
+            <button
+              onClick={() => markSatisfied(false)}
+              disabled={submitting}
+              className="w-full rounded-md border border-gray-200 py-2.5 font-medium text-gray-900 disabled:opacity-40"
+            >
+              I&apos;d like to talk to someone
             </button>
           </div>
         </Card>
       )}
 
+      {screen === "satisfiedClosing" && (
+        <Card>
+          <CheckIcon />
+          <h1 className="mt-3 text-lg font-medium text-gray-900">
+            Good — see you next week
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            No credit was used. Take care of yourself.
+          </p>
+        </Card>
+      )}
+
       {screen === "choice" && (
         <div className="space-y-4">
-          <BackLink onClick={() => setScreen("carrying")} />
+          <BackLink onClick={() => setScreen("suggestion")} />
 
           <div className="rounded-lg border border-gray-200 bg-white p-5">
             <TrustedIcon />
@@ -333,7 +510,7 @@ export default function EmployeePage() {
           </h1>
           <p className="mt-1 text-sm text-red-600">{errorMessage}</p>
           <button
-            onClick={() => setScreen("choice")}
+            onClick={() => setScreen(checkInId ? "suggestion" : "carrying")}
             className="mt-4 w-full rounded-md border border-gray-200 py-2.5 font-medium text-gray-900"
           >
             Back

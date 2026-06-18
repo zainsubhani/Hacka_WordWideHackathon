@@ -12,6 +12,9 @@ exchange per credit, no implied ongoing relationship.
 - Every check-in must pass through the risk-check step BEFORE any credit
   is deducted or listener is matched. If risk is flagged, skip credit
   deduction and matching entirely and show crisis resources instead.
+- The AI suggestion shown after the "carrying" prompt is free and never
+  consumes a credit. A credit is only spent if the employee explicitly
+  asks to talk to a person after seeing the suggestion.
 - No real money should move except small test-mode Mollie transactions.
   Always use the test API key, never a live key.
 - Keep the UI flat and minimal — no marketing fluff, this is a working
@@ -23,7 +26,8 @@ Next.js App Router, TypeScript, Prisma + SQLite, Tailwind, deployed to Vercel.
 ## Data models
 - Employer: id, name, creditBalance (int)
 - CheckIn: id, employerId, sliderValues (json), carryingText (string),
-  riskFlag (bool), createdAt
+  riskFlag (bool), suggestionText (string, nullable), satisfied
+  (bool, nullable), createdAt
 - Transaction: id, checkInId, listenerId (nullable), replyText (nullable),
   repliedAt (nullable), createdAt
 - Listener: id, name, available (bool)
@@ -34,6 +38,20 @@ if the text suggests immediate danger to self or others. For the hackathon,
 implement as a single call to the Anthropic API with a tightly scoped
 system prompt asking for a yes/no answer only. Fall back to a basic keyword
 list if no API key is configured, so the demo never breaks if a key is missing.
+
+## AI suggestion
+After the "what are you carrying" prompt and before the trusted-contact /
+listener-credit choice screen, `/api/suggest` runs `checkRisk` first — if
+flagged, return immediately and show crisis resources, skipping the
+suggestion call entirely. Otherwise call the Anthropic API with the slider
+values and carrying text for a brief, warm, non-clinical reflection (2-4
+sentences, one concrete reframe, no diagnosis or therapy jargon), store it
+on a new CheckIn row as `suggestionText`, and return it to the frontend.
+The employee then marks the CheckIn `satisfied` true ("this helps") with no
+further action, or false ("I'd like to talk to someone") before proceeding
+to the existing choice screen — only the listener-credit path from there
+spends a credit, and it links to this same CheckIn row rather than creating
+a new one.
 
 ## Mollie integration
 Use the REST API directly: POST https://api.mollie.com/v2/payments with
