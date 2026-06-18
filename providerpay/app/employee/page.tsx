@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 type Sliders = {
@@ -36,6 +37,7 @@ export default function EmployeePage() {
   const [carryingText, setCarryingText] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [checkInId, setCheckInId] = useState("");
 
   function updateSlider(key: keyof Sliders, value: number) {
     setSliders((prev) => ({ ...prev, [key]: value }));
@@ -57,6 +59,7 @@ export default function EmployeePage() {
       if (data.showCrisisResources) {
         setScreen("crisis");
       } else if (data.success) {
+        setCheckInId(data.checkInId);
         setScreen("listenerSuccess");
       } else {
         setErrorMessage(data.error ?? "Something went wrong. Please try again.");
@@ -179,6 +182,12 @@ export default function EmployeePage() {
           <p className="text-sm text-gray-600">
             One credit was used. You&apos;ll hear back soon.
           </p>
+          <Link
+            href={`/employee/status/${checkInId}`}
+            className="block w-full rounded border px-4 py-2 text-center"
+          >
+            Check for a reply later
+          </Link>
         </div>
       )}
 
