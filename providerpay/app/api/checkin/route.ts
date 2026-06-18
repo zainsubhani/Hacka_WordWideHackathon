@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   const riskFlag = await checkRisk(carryingText);
 
   if (riskFlag) {
-    await prisma.checkIn.create({
+    const checkIn = await prisma.checkIn.create({
       data: {
         employerId: (await prisma.employer.findFirstOrThrow()).id,
         sliderValues,
@@ -20,6 +20,10 @@ export async function POST(request: Request) {
         riskFlag,
       },
     });
+
+    console.warn(
+      `[CRISIS ALERT] CheckIn ${checkIn.id} flagged risk at ${checkIn.createdAt.toISOString()}. Review immediately.`
+    );
 
     return NextResponse.json({ riskFlag: true, showCrisisResources: true });
   }
@@ -64,6 +68,11 @@ export async function POST(request: Request) {
         checkInId: checkIn.id,
         listenerId: listener.id,
       },
+    });
+
+    await tx.listener.update({
+      where: { id: listener.id },
+      data: { available: false },
     });
 
     return { checkIn, transaction };
