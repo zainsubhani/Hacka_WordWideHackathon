@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Employer {
+  id            String    @id @default(cuid())
+  name          String
+  creditBalance Int
+  checkIns      CheckIn[]
+}
+
+model CheckIn {
+  id            String       @id @default(cuid())
+  employerId    String
+  employer      Employer     @relation(fields: [employerId], references: [id])
+  sliderValues  Json
+  carryingText  String
+  riskFlag      Boolean
+  createdAt     DateTime     @default(now())
+  transaction   Transaction?
+}
+
+model Transaction {
+  id         String    @id @default(cuid())
+  checkInId  String    @unique
+  checkIn    CheckIn   @relation(fields: [checkInId], references: [id])
+  listenerId String?
+  listener   Listener? @relation(fields: [listenerId], references: [id])
+  replyText  String?
+  repliedAt  DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+model Listener {
+  id           String        @id @default(cuid())
+  name         String
+  available    Boolean       @default(true)
+  transactions Transaction[]
+}
