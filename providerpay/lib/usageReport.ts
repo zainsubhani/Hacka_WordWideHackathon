@@ -11,21 +11,21 @@ function startOfWeek(date: Date) {
   return d;
 }
 
-export async function getUsageReport() {
+export async function getUsageReport(employerId: string) {
   const earliestWeekStart = new Date(
     startOfWeek(new Date()).getTime() - (WEEKS - 1) * MS_PER_WEEK
   );
 
   const [checkIns, payments] = await Promise.all([
     prisma.checkIn.findMany({
-      where: { createdAt: { gte: earliestWeekStart } },
+      where: { employerId, createdAt: { gte: earliestWeekStart } },
       select: {
         createdAt: true,
         riskFlag: true,
         transaction: { select: { id: true } },
       },
     }),
-    prisma.payment.findMany({ where: { status: "paid" } }),
+    prisma.payment.findMany({ where: { employerId, status: "paid" } }),
   ]);
 
   const weeks = Array.from({ length: WEEKS }, (_, i) => {

@@ -1,38 +1,61 @@
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth";
 import { getUsageReport } from "@/lib/usageReport";
 import BuyCreditsButton from "./BuyCreditsButton";
 import GenerateInvoiceButton from "./GenerateInvoiceButton";
+import InviteForm from "./InviteForm";
 
 const LOW_CREDIT_THRESHOLD = 5;
 
 export default async function EmployerPage() {
+  const user = await getSessionUser();
+
+  if (!user) {
+    redirect("/employer/login");
+  }
+
+  const employerId = user.employerId;
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const employer = await prisma.employer.findFirst();
   const [
+    employer,
     totalCheckIns,
     riskFlagsCaught,
     transactionsThisMonth,
     payments,
     invoices,
+    teammates,
     usageReport,
   ] = await Promise.all([
-    prisma.checkIn.count(),
-    prisma.checkIn.count({ where: { riskFlag: true } }),
-    prisma.transaction.count({ where: { createdAt: { gte: startOfMonth } } }),
+    prisma.employer.findUniqueOrThrow({ where: { id: employerId } }),
+    prisma.checkIn.count({ where: { employerId } }),
+    prisma.checkIn.count({ where: { employerId, riskFlag: true } }),
+    prisma.transaction.count({
+      where: {
+        checkIn: { employerId },
+        createdAt: { gte: startOfMonth },
+      },
+    }),
     prisma.payment.findMany({
+      where: { employerId },
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
     prisma.invoice.findMany({
+      where: { employerId },
       orderBy: { periodStart: "desc" },
       take: 6,
     }),
-    getUsageReport(),
+    prisma.user.findMany({
+      where: { employerId },
+      orderBy: { createdAt: "asc" },
+    }),
+    getUsageReport(employerId),
   ]);
 
-  const creditBalance = employer?.creditBalance ?? 0;
+  const creditBalance = employer.creditBalance;
   const isLow = creditBalance <= LOW_CREDIT_THRESHOLD;
   const maxWeeklyCheckIns = Math.max(
     1,
@@ -42,9 +65,29 @@ export default async function EmployerPage() {
   return (
     <main className="mx-auto min-h-screen max-w-lg space-y-4 px-4 py-8">
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <h1 className="mb-4 text-lg font-medium text-gray-900">
-          Employer dashboard
-        </h1>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-medium text-gray-900">
+              {employer.name}
+            </h1>
+            <p className="text-sm text-gray-500">{user.email}</p>
+          </div>
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              className="text-sm text-gray-500 underline hover:text-gray-900"
+            >
+              Log out
+            </button>
+          </form>
+        </div>
+
+        <p className="mb-4 text-sm text-gray-500">
+          Check-in link for your team:{" "}
+          <span className="font-mono text-gray-900">
+            /employee/{employer.slug}
+          </span>
+        </p>
 
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-md bg-gray-50 p-4">
@@ -178,6 +221,19 @@ export default async function EmployerPage() {
             </li>
           ))}
         </ul>
+      </div>
+
+      <div className="rounded-lg border border-gray-200 bg-white p-6">
+        <h2 className="mb-3 text-sm font-medium text-gray-900">Team</h2>
+        <ul className="mb-3 space-y-1 text-sm text-gray-500">
+          {teammates.map((teammate) => (
+            <li key={teammate.id} className="flex justify-between">
+              <span>{teammate.email}</span>
+              <span>{teammate.role}</span>
+            </li>
+          ))}
+        </ul>
+        <InviteForm />
       </div>
     </main>
   );

@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth";
 
 const CREDITS_PER_PAYMENT = 20;
 const AMOUNT_VALUE = "10.00";
 
 export async function POST() {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const apiKey = process.env.MOLLIE_API_KEY;
   const baseUrl = process.env.PUBLIC_BASE_URL;
 
@@ -14,8 +21,6 @@ export async function POST() {
       { status: 500 }
     );
   }
-
-  const employer = await prisma.employer.findFirstOrThrow();
 
   const mollieResponse = await fetch("https://api.mollie.com/v2/payments", {
     method: "POST",
@@ -42,7 +47,7 @@ export async function POST() {
 
   await prisma.payment.create({
     data: {
-      employerId: employer.id,
+      employerId: user.employerId,
       mollieId: payment.id,
       status: payment.status,
       creditsToAdd: CREDITS_PER_PAYMENT,

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET() {
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+
   const invoices = await prisma.invoice.findMany({
+    where: { employerId: user.employerId },
     orderBy: { periodStart: "desc" },
   });
 
@@ -10,17 +18,25 @@ export async function GET() {
 }
 
 export async function POST() {
-  const employer = await prisma.employer.findFirstOrThrow();
+  const user = await getSessionUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
 
   const now = new Date();
   const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const [transactionCount, payments] = await Promise.all([
     prisma.transaction.count({
-      where: { createdAt: { gte: periodStart, lte: now } },
+      where: {
+        checkIn: { employerId: user.employerId },
+        createdAt: { gte: periodStart, lte: now },
+      },
     }),
     prisma.payment.findMany({
       where: {
+        employerId: user.employerId,
         status: "paid",
         createdAt: { gte: periodStart, lte: now },
       },
@@ -33,7 +49,7 @@ export async function POST() {
 
   const invoice = await prisma.invoice.create({
     data: {
-      employerId: employer.id,
+      employerId: user.employerId,
       periodStart,
       periodEnd: now,
       totalCredits: transactionCount,
